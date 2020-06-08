@@ -48,13 +48,14 @@ const copyStylesheet = async ({ siteUrl, pathPrefix, indexOutput }) => {
 }
 
 const serializeMarkdownNodes = (node) => {
-    if (!node.fields.slug) {
+    if (!node.slug && !node.fields.slug) {
         throw Error(`\`slug\` is a required field`)
     }
 
-    node.slug = node.fields.slug
-
-    delete node.fields.slug
+    if (!node.slug) {
+        node.slug = node.fields.slug
+        delete node.fields.slug
+    }
 
     if (node.frontmatter) {
         if (node.frontmatter.published_at) {
@@ -155,16 +156,23 @@ const serializeSources = ({ mapping, additionalSitemaps = [] }) => {
     return sitemaps
 }
 
-const runQuery = (handler, { query, exclude }) => handler(query).then((r) => {
+const runQuery = (handler, { query, mapping, exclude }) => handler(query).then((r) => {
     if (r.errors) {
         throw new Error(r.errors.join(`, `))
     }
 
     for (let source in r.data) {
+        // Check for custom serializer
+        if (mapping && mapping[source] && typeof mapping[source].customSerializer === `function`) {
+            if (r.data[source] && r.data[source].edges && r.data[source].edges.length) {
+                r.data[source].edges = mapping[source].customSerializer(r.data[source].edges)
+            }
+        }
+
         // Removing excluded paths
         if (r.data[source] && r.data[source].edges && r.data[source].edges.length) {
             r.data[source].edges = r.data[source].edges.filter(({ node }) => !exclude.some((excludedRoute) => {
-                const slug = (source === `allMarkdownRemark` || source === `allMdx`) ? node.fields.slug.replace(/^\/|\/$/, ``) : node.slug.replace(/^\/|\/$/, ``)
+                const slug = node.fields && node.fields.slug ? node.fields.slug.replace(/^\/|\/$/, ``) : node.slug.replace(/^\/|\/$/, ``)
                 excludedRoute = typeof excludedRoute === `object` ? excludedRoute : excludedRoute.replace(/^\/|\/$/, ``)
 
                 // test if the passed regular expression is valid
