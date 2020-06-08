@@ -103,6 +103,7 @@ export default class BaseSiteMapGenerator {
 
     createImageNodeFromDatum(datum) {
         // Check for cover first because user has cover but the rest only have image
+        // TODO: Add three accepted image names to documentation
         const image = datum.cover_image || datum.profile_image || datum.feature_image
         let imageEl
 
