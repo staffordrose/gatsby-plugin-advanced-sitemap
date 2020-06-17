@@ -351,8 +351,6 @@ exports.onPostBuild = async ({ graphql, pathPrefix }, pluginOptions) => {
         queryRecords = await runQuery(graphql, options)
     }
 
-    console.log(`queryRecords`, queryRecords)
-
     // Instanciate the Ghost Sitemaps Manager
     const manager = new Manager(options)
 
