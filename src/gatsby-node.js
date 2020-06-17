@@ -156,16 +156,78 @@ const serializeSources = ({ mapping, additionalSitemaps = [] }) => {
     return sitemaps
 }
 
+const flattenDataSources = (data, mapping) => {
+    const recursiveFlatten = (dataNode, mappingNode, sourceKey) => {
+        for (let source in dataNode) {
+            if (mappingNode && mappingNode[source]) {
+                if (typeof mappingNode[source] === `object`) {
+                    recursiveFlatten(dataNode[source], mappingNode[source], source)
+
+                    if (data[source] === undefined) {
+                        const dataSourceKey = `${sourceKey}${source[0].toUpperCase()}${source.substr(1)}`
+
+                        data[dataSourceKey] = dataNode[source]
+
+                        delete dataNode[source]
+                    }
+                }
+            }
+
+            if (typeof dataNode[source] === `object` && Object.keys(dataNode[source]).length === 0) {
+                delete dataNode[source]
+            }
+        }
+    }
+
+    recursiveFlatten(data, mapping)
+
+    return data
+}
+
+const flattenMapping = (mapping) => {
+    const recursiveFlatten = (mappingNode, sourceKey) => {
+        for (let source in mappingNode) {
+            if (mappingNode && mappingNode[source]) {
+                if (typeof mappingNode[source] === `object`) {
+                    recursiveFlatten(mappingNode[source], source)
+
+                    if (mapping[source] === undefined) {
+                        const dataSourceKey = `${sourceKey}${source[0].toUpperCase()}${source.substr(1)}`
+
+                        mapping[dataSourceKey] = mappingNode[source]
+
+                        delete mappingNode[source]
+                    }
+                }
+            }
+
+            if (typeof mappingNode[source] === `object` && Object.keys(mappingNode[source]).length === 0) {
+                delete mappingNode[source]
+            }
+        }
+    }
+
+    recursiveFlatten(mapping)
+
+    return mapping
+}
+
 const runQuery = (handler, { query, mapping, exclude }) => handler(query).then((r) => {
     if (r.errors) {
         throw new Error(r.errors.join(`, `))
     }
 
+    // Flatten nested data sources
+    r.data = flattenDataSources(r.data, mapping)
+
+    // Flatten nested mapping sources
+    mapping = flattenMapping(mapping)
+
     for (let source in r.data) {
-        // Check for custom serializer
-        if (mapping && mapping[source] && typeof mapping[source].customSerializer === `function`) {
+        // Check for node serializer
+        if (mapping && mapping[source] && typeof mapping[source].nodeSerializer === `function`) {
             if (r.data[source] && r.data[source].edges && r.data[source].edges.length) {
-                r.data[source].edges = mapping[source].customSerializer(r.data[source].edges)
+                r.data[source].edges = mapping[source].nodeSerializer(r.data[source].edges)
             }
         }
 
@@ -288,6 +350,8 @@ exports.onPostBuild = async ({ graphql, pathPrefix }, pluginOptions) => {
     } else {
         queryRecords = await runQuery(graphql, options)
     }
+
+    console.log(`queryRecords`, queryRecords)
 
     // Instanciate the Ghost Sitemaps Manager
     const manager = new Manager(options)
