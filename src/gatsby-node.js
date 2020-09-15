@@ -172,7 +172,9 @@ const runQuery = (handler, { query, mapping, exclude }) => handler(query).then((
         // Removing excluded paths
         if (r.data[source] && r.data[source].edges && r.data[source].edges.length) {
             r.data[source].edges = r.data[source].edges.filter(({ node }) => !exclude.some((excludedRoute) => {
-                const slug = node.fields && node.fields.slug ? node.fields.slug.replace(/^\/|\/$/, ``) : node.slug.replace(/^\/|\/$/, ``)
+                const sourceType = node.__typename ? `all${node.__typename}` : source
+                const slug = (sourceType === `allMarkdownRemark` || sourceType === `allMdx`) || (node.fields && node.fields.slug) ? node.fields.slug.replace(/^\/|\/$/, ``) : node.slug.replace(/^\/|\/$/, ``)
+
                 excludedRoute = typeof excludedRoute === `object` ? excludedRoute : excludedRoute.replace(/^\/|\/$/, ``)
 
                 // test if the passed regular expression is valid
@@ -215,8 +217,8 @@ const serialize = ({ ...sources } = {}, { site, allSitePage }, { mapping, addUnc
                     if (!node) {
                         return
                     }
-
-                    if (type === `allMarkdownRemark` || type === `allMdx`) {
+                    const nodeType = node.__typename ? `all${node.__typename}` : type
+                    if (nodeType === `allMarkdownRemark` || nodeType === `allMdx`) {
                         node = serializeMarkdownNodes(node)
                     }
 
